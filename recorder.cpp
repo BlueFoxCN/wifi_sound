@@ -160,10 +160,37 @@ void Recorder::check_record_time() {
   time_t cur_time;
   struct tm *p;
   int cur_second;
-  File *
+  File *fp;
+  ssize_t read;
+  char *line;
+  char *pch;
+  bool hit;
+  int start_time, end_time;
+  thread record_thread;
   while(true) {
+    hit = false;
     time(&cur_time);
     p = gmtime(&cur_time);
     cur_second = p->tm_hour * 3600 + p->tm_min * 60 + p->tm_sec;
+    fp = fopen(RECORD_FILE_NAME, "r");
+    if (fp) {
+      while ((read = getline(&line, 0, fp)) != -1) {
+        start_time = atoi(strtok(line, ","));
+        end_time = atoi(strtok(line, ","));
+        if (cur_time > start_time && cur_time < end_time) {
+          hit = true;
+          break;
+        }
+      }
+      fclose(file);
+    }
+    if (is_record && !hit) {
+      stop_record();
+      if (record_thread != NULL) {
+        record_thread.join();
+      }
+    } else if (!is_record && hit) {
+      record_thread = start_record();
+    }
   }
 }
