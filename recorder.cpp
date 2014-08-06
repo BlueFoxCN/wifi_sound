@@ -42,6 +42,7 @@ void Recorder::record() {
   char *cur_file_name;
   char file_name_with_path[100];
   char final_name[100];
+  char *buffer;
 
   /* Open PCM device for recording (capture). */
   rc = snd_pcm_open(&handle, "hw:0,0",
@@ -93,7 +94,7 @@ void Recorder::record() {
   snd_pcm_hw_params_get_period_size(params,
                   &frames, &dir);
   size = frames * 2 * channel_num; /* 2 bytes/sample, 2 channels */
-	buffer = (char *) malloc(size);
+  buffer = (char *) malloc(size);
 
   snd_pcm_hw_params_get_period_time(params,
                   &val, &dir);
@@ -141,8 +142,8 @@ void Recorder::record() {
     }
 
     speex_bits_reset(&enc_bits);
-		speex_encode_int(enc_state,out,&enc_bits);
-		nbBytes = speex_bits_write(&enc_bits, buffer, size);
+    speex_encode_int(enc_state,out,&enc_bits);
+    int nbBytes = speex_bits_write(&enc_bits, buffer, size);
 
     fwrite(buffer, nBytes, fp);
     cur_file_size += nbBytes

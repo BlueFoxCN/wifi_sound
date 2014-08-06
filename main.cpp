@@ -9,8 +9,8 @@ using namespace std;
 
 int main() {
   log_init(LL_DEBUG, "log", "/root/");
-  Recorder recorder();
-  Port port();
+  Recorder recorder;
+  Port port;
 
   thread t_recorder(&Recorder::check_record_time, recorder);
   thread t_port(&Port::start, port);
