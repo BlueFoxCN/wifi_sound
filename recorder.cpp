@@ -4,6 +4,7 @@
 #include <list>
 #include <unordered_map>
 #include <alsa/asoundlib.h>
+#include <speex/speex.h>
 #include <time.h>
 #include "recorder.h"
 #include "timer.h"
@@ -39,6 +40,8 @@ void Recorder::record() {
   int dir;
   snd_pcm_uframes_t frames;
   int channel_num = 1;
+  int cur_file_size;
+  FILE *fp;
 
   /* Open PCM device for recording (capture). */
   rc = snd_pcm_open(&handle, "hw:0,0",
@@ -90,50 +93,37 @@ void Recorder::record() {
   snd_pcm_hw_params_get_period_size(params,
                   &frames, &dir);
   size = frames * 2 * channel_num; /* 2 bytes/sample, 2 channels */
+	buffer = (char *) malloc(size);
 
   snd_pcm_hw_params_get_period_time(params,
                   &val, &dir);
 
 
-  // the network part
-  int fd = socket(AF_INET,SOCK_DGRAM,0);
-  if(fd==-1) {
-    log_error("socket create error!");
-    exit(-1);
-  }
+  /***** encode *****/
+  int frames_size;
+	frames_size = channel_num * 16;	/* 16 bits/sample, 1 channels */
+	void *enc_state;
+	SpeexBits enc_bits;
+	char c_out[size];
+	short out[size];
+	int nbBytes;
 
-  struct sockaddr_in addr_to;//目标服务器地址
-  addr_to.sin_family = AF_INET;
-  addr_to.sin_port = htons(RECV_DATA_PORT);
-  addr_to.sin_addr.s_addr = inet_addr(this->parent.c_str());
+	enc_state = speex_encoder_init(&speex_nb_mode);
+	int q=8;
+	speex_encoder_ctl(enc_state, SPEEX_SET_QUALITY, &q);  
+	speex_encoder_ctl(enc_state, SPEEX_GET_FRAME_SIZE, &frames_size);
+	speex_bits_init(&enc_bits);  
+  /******************/
 
-  struct sockaddr_in addr_from;
-  addr_from.sin_family = AF_INET;
-  addr_from.sin_port = htons(0);//获得任意空闲端口
-  addr_from.sin_addr.s_addr = htons(INADDR_ANY);//获得本机地址
-  int yes = 1;
-  setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
-  int r = ::bind(fd, (struct sockaddr*)&addr_from, sizeof(addr_from));
 
-  if (r == -1) {
-    log_error("Bind error!");
-    close(fd);
-    exit(-1);
-  }
-
-  char buf[size];
-  int len;
-  char* data_with_ip;
-  // send data to the server
   is_record = true;
   stop = false;
+  cur_file_size = 0;
+  string cur_file_name = get_cur_time_str();
+  fp = fopen(cur_file_name, "a+");
   while (!stop) {
     
-    data_with_ip = new char[strlen(this->ip_addr.c_str()) + 1 + size];
-    strcpy(data_with_ip, this->ip_addr.c_str());
-    strcat(data_with_ip, ":");
-
-    rc = snd_pcm_readi(handle, &data_with_ip[strlen(this->ip_addr.c_str()) + 1], frames);
+    rc = snd_pcm_readi(handle, c_out, frames);
     if (rc == -EPIPE) {
       // EPIPE means overrun
       log_warn("overrun occurred");
@@ -144,15 +134,36 @@ void Recorder::record() {
       log_warn("short read, read %d frames", rc);
     }
 
-    len = sendto(fd, data_with_ip, strlen(this->ip_addr.c_str()) + 1 + size, 0, (struct sockaddr*)&addr_to, sizeof(addr_to)); 
-    delete(data_with_ip);
+    for (int i = 0; i < size; i++) {
+      out[i] = c_out[i];
+    }
+
+    speex_bits_reset(&enc_bits);
+		speex_encode_int(enc_state,out,&enc_bits);
+		nbBytes = speex_bits_write(&enc_bits, buffer, size);
+
+    fwrite(buffer, nBytes, fp);
+    cur_file_size += nbBytes
+
+    if (cur_file_size > FILE_SIZE) {
+      fclose(fp);
+      cur_file_name = get_cur_time_str();
+      fp = fopen(cur_file_name, "a+");
+      cur_file_size = 0;
+    }
   }
+
+  fclose(fp);
 
   is_record = false;
 
-  close(fd);
   snd_pcm_drain(handle);
   snd_pcm_close(handle);
+  free(buffer);
+
+	speex_decoder_destroy(enc_state);
+	speex_bits_destroy(&enc_bits);
+
   return;
 }
 
@@ -182,7 +193,7 @@ void Recorder::check_record_time() {
           break;
         }
       }
-      fclose(file);
+      fclose(fp);
     }
     if (is_record && !hit) {
       stop_record();
@@ -192,5 +203,6 @@ void Recorder::check_record_time() {
     } else if (!is_record && hit) {
       record_thread = start_record();
     }
+    sleep(CHECK_INTERVAL);
   }
 }
