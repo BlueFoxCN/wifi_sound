@@ -1,13 +1,10 @@
 #include <iostream>
 #include <cstring>
 #include <thread>
-#include <list>
-#include <unordered_map>
 #include <alsa/asoundlib.h>
 #include <speex/speex.h>
 #include <time.h>
 #include "recorder.h"
-#include "timer.h"
 #include "tool.h"
 #include "log.h"
 
@@ -42,6 +39,9 @@ void Recorder::record() {
   int channel_num = 1;
   int cur_file_size;
   FILE *fp;
+  char *cur_file_name;
+  char file_name_with_path[100];
+  char final_name[100];
 
   /* Open PCM device for recording (capture). */
   rc = snd_pcm_open(&handle, "hw:0,0",
@@ -118,9 +118,11 @@ void Recorder::record() {
 
   is_record = true;
   stop = false;
+  cur_file_name = get_cur_time_str();
+  strcpy(file_name_with_path, FILE_PATH);
+  strcat(file_name_with_path, cur_file_name);
+  fp = fopen(file_name_with_path, "a+");
   cur_file_size = 0;
-  string cur_file_name = get_cur_time_str();
-  fp = fopen(cur_file_name, "a+");
   while (!stop) {
     
     rc = snd_pcm_readi(handle, c_out, frames);
@@ -147,13 +149,21 @@ void Recorder::record() {
 
     if (cur_file_size > FILE_SIZE) {
       fclose(fp);
+      strcpy(final_name, "f_");
+      strcat(final_name, file_name_with_path);
+      rename(file_name_with_path, final_name);
       cur_file_name = get_cur_time_str();
-      fp = fopen(cur_file_name, "a+");
+      strcpy(file_name_with_path, FILE_PATH);
+      strcat(file_name_with_path, cur_file_name);
+      fp = fopen(file_name_with_path, "a+");
       cur_file_size = 0;
     }
   }
 
   fclose(fp);
+  strcpy(final_name, "f_");
+  strcat(final_name, file_name_with_path);
+  rename(file_name_with_path, final_name);
 
   is_record = false;
 
@@ -171,27 +181,36 @@ void Recorder::check_record_time() {
   time_t cur_time;
   struct tm *p;
   int cur_second;
-  File *fp;
+  FILE *fp;
   ssize_t read;
-  char *line;
-  char *pch;
+  char buf[1000];
+  char *content, *pch;
   bool hit;
-  int start_time, end_time;
+  int start_time, end_time, flag;
   thread record_thread;
   while(true) {
     hit = false;
+    flag = 0;
     time(&cur_time);
     p = gmtime(&cur_time);
     cur_second = p->tm_hour * 3600 + p->tm_min * 60 + p->tm_sec;
     fp = fopen(RECORD_FILE_NAME, "r");
     if (fp) {
-      while ((read = getline(&line, 0, fp)) != -1) {
-        start_time = atoi(strtok(line, ","));
-        end_time = atoi(strtok(line, ","));
-        if (cur_time > start_time && cur_time < end_time) {
-          hit = true;
-          break;
+      read = fread(buf, sizeof(char), sizeof(buf), fp);
+      content = strtok(buf, ";");
+      pch = strtok(content, ",");
+      while (pch != NULL) {
+        if (flag == 0) {
+          start_time = atoi(pch);
+        } else {
+          end_time = atoi(pch);
+          if (cur_second > start_time && cur_second < end_time) {
+            hit = true;
+            break;
+          }
         }
+        flag = 1 - flag;
+        pch = strtok(NULL, ",");
       }
       fclose(fp);
     }

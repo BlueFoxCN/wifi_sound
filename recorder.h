@@ -3,11 +3,8 @@
 
 #include <thread>
 #include <string>
-#include <unordered_map>
-#include <list>
+#include "common.h"
 using namespace std;
-
-// #define TEST_RELAY
 
 #define RECORD_TIME_FILE "record_time.txt"
 
@@ -22,7 +19,7 @@ class Recorder {
     thread start_record();
     void stop_record();
   public:
-    Recorder(string, list<string>);
+    Recorder();
     void check_record_time();
 };
 

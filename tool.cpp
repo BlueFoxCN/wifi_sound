@@ -1,8 +1,15 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <string>
 #include <cstring>
+#include <time.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/ioctl.h>
+#include <netinet/in.h>
+#include <net/if.h>
 #include "tool.h"
 
 using namespace std;
@@ -56,6 +63,13 @@ time_t get_sys_time() {
   return raw_time;
 }
 
+char* get_cur_time_str() {
+  time_t raw_time;
+  time(&raw_time);
+  char *ret;
+  sprintf(ret, "%s", ctime(&raw_time));
+}
+
 char* join_str_with_colon(string str1, char str2[]) {
   char* joined_str;
   joined_str = new char[strlen(str1.c_str())+2+strlen(str2)];
@@ -67,4 +81,40 @@ char* join_str_with_colon(string str1, char str2[]) {
 
 void number_to_string(int number, char* str) {
   sprintf(str, "%d\0", number);
+}
+
+char* get_local_ip(char* interface) {
+  int fd;
+  struct ifreq ifr;
+  fd = socket(AF_INET, SOCK_DGRAM, 0);
+
+  /* I want to get an IPv4 IP address */
+  ifr.ifr_addr.sa_family = AF_INET;
+
+  /* I want IP address attached to "eth0" */
+  strncpy(ifr.ifr_name, interface, IFNAMSIZ-1);
+
+  ioctl(fd, SIOCGIFADDR, &ifr);
+
+  close(fd);
+
+  /* display result */
+  char *ip;
+  return  inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr);
+}
+
+char* get_gateway_ip_from_local_ip(char *l, ssize_t len) {
+  char local_ip[len];
+  strncpy(local_ip, l, len);
+  int seg = 0;
+  char *pch;
+  char* gateway_ip = (char *)malloc(100);
+  pch = strtok(local_ip, ".");
+  for (int seg = 0; seg < 3; seg++) {
+    strcat(gateway_ip, pch);
+    strcat(gateway_ip, ".");
+    pch = strtok(NULL, ".");
+  }
+  strcat(gateway_ip, "1");
+  return gateway_ip;
 }
