@@ -17,7 +17,6 @@ class Recorder {
     bool stop;
     void record();
     thread start_record();
-    void stop_record();
   public:
     Recorder();
     void check_record_time();

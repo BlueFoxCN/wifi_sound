@@ -21,10 +21,6 @@ thread Recorder::start_record() {
   return record_thread;
 }
 
-void Recorder::stop_record() {
-  stop = true;
-}
-
 void Recorder::record() {
   log_trace("start record thread");
   // the audio initialization part
@@ -107,7 +103,7 @@ void Recorder::record() {
 	SpeexBits enc_bits;
 	char c_out[size];
 	short out[size];
-	int nbBytes;
+	int nBytes;
 
 	enc_state = speex_encoder_init(&speex_nb_mode);
 	int q=8;
@@ -143,10 +139,10 @@ void Recorder::record() {
 
     speex_bits_reset(&enc_bits);
     speex_encode_int(enc_state,out,&enc_bits);
-    int nbBytes = speex_bits_write(&enc_bits, buffer, size);
+    nBytes = speex_bits_write(&enc_bits, buffer, size);
 
-    fwrite(buffer, nBytes, fp);
-    cur_file_size += nbBytes
+    fwrite(buffer, sizeof(char), nBytes, fp);
+    cur_file_size += nBytes;
 
     if (cur_file_size > FILE_SIZE) {
       fclose(fp);
@@ -195,7 +191,7 @@ void Recorder::check_record_time() {
     time(&cur_time);
     p = gmtime(&cur_time);
     cur_second = p->tm_hour * 3600 + p->tm_min * 60 + p->tm_sec;
-    fp = fopen(RECORD_FILE_NAME, "r");
+    fp = fopen(RECORD_TIME_FILE, "r");
     if (fp) {
       read = fread(buf, sizeof(char), sizeof(buf), fp);
       content = strtok(buf, ";");
@@ -216,10 +212,8 @@ void Recorder::check_record_time() {
       fclose(fp);
     }
     if (is_record && !hit) {
-      stop_record();
-      if (record_thread != NULL) {
-        record_thread.join();
-      }
+      stop = true;
+      record_thread.join();
     } else if (!is_record && hit) {
       record_thread = start_record();
     }
