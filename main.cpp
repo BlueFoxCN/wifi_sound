@@ -8,7 +8,7 @@
 using namespace std;
 
 int main() {
-  log_init(LL_DEBUG, "log", "/root/");
+  log_init(LL_DEBUG, "log", ".");
   Recorder recorder;
   Port port;
 

@@ -1,1 +1,4 @@
 wifi_sound
+log.*
+record_time.txt
+f_*

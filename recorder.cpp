@@ -35,10 +35,7 @@ void Recorder::record() {
   int channel_num = 1;
   int cur_file_size;
   FILE *fp;
-  char *cur_file_name;
-  char file_name_with_path[100];
-  char final_name[100];
-  char *buffer;
+  char *buffer, cur_file_name[100], file_name_with_path[100], final_name[100], final_name_with_path[100];
 
   /* Open PCM device for recording (capture). */
   rc = snd_pcm_open(&handle, "hw:0,0",
@@ -104,6 +101,7 @@ void Recorder::record() {
 	char c_out[size];
 	short out[size];
 	int nBytes;
+	long cur_time;
 
 	enc_state = speex_encoder_init(&speex_nb_mode);
 	int q=8;
@@ -115,10 +113,11 @@ void Recorder::record() {
 
   is_record = true;
   stop = false;
-  cur_file_name = get_cur_time_str();
+  cur_time = get_sys_time();
+  sprintf(cur_file_name, "%lu", cur_time);
   strcpy(file_name_with_path, FILE_PATH);
   strcat(file_name_with_path, cur_file_name);
-  fp = fopen(file_name_with_path, "a+");
+  fp = fopen(file_name_with_path, "w+");
   cur_file_size = 0;
   while (!stop) {
     
@@ -147,20 +146,26 @@ void Recorder::record() {
     if (cur_file_size > FILE_SIZE) {
       fclose(fp);
       strcpy(final_name, "f_");
-      strcat(final_name, file_name_with_path);
-      rename(file_name_with_path, final_name);
-      cur_file_name = get_cur_time_str();
+      strcat(final_name, cur_file_name);
+      strcpy(final_name_with_path, FILE_PATH);
+      strcat(final_name_with_path, final_name);
+      rename(file_name_with_path, final_name_with_path);
+      log_trace("%s", final_name_with_path);
+      cur_time = get_sys_time();
+      sprintf(cur_file_name, "%d", cur_time);
       strcpy(file_name_with_path, FILE_PATH);
       strcat(file_name_with_path, cur_file_name);
-      fp = fopen(file_name_with_path, "a+");
+      fp = fopen(file_name_with_path, "w+");
       cur_file_size = 0;
     }
   }
 
   fclose(fp);
   strcpy(final_name, "f_");
-  strcat(final_name, file_name_with_path);
-  rename(file_name_with_path, final_name);
+  strcat(final_name, cur_file_name);
+  strcpy(final_name_with_path, FILE_PATH);
+  strcat(final_name_with_path, final_name);
+  rename(file_name_with_path, final_name_with_path);
 
   is_record = false;
 
@@ -177,13 +182,11 @@ void Recorder::record() {
 void Recorder::check_record_time() {
   time_t cur_time;
   struct tm *p;
-  int cur_second;
   FILE *fp;
   ssize_t read;
-  char buf[1000];
-  char *content, *pch;
+  char *content, *pch, buf[1000];
   bool hit;
-  int start_time, end_time, flag;
+  int cur_second, start_time, end_time, flag;
   thread record_thread;
   while(true) {
     hit = false;
@@ -191,6 +194,7 @@ void Recorder::check_record_time() {
     time(&cur_time);
     p = gmtime(&cur_time);
     cur_second = p->tm_hour * 3600 + p->tm_min * 60 + p->tm_sec;
+    log_trace("*** current second is %d ***", cur_second);
     fp = fopen(RECORD_TIME_FILE, "r");
     if (fp) {
       read = fread(buf, sizeof(char), sizeof(buf), fp);
