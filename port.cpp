@@ -63,9 +63,7 @@ void Port::start() {
   // start the record time management thread
   thread io_thread(&Port::record_time_io, this);
   int ap_recv_port = 9003;
-  int socket_desc;
   long file_size;
-  struct sockaddr_in server;
   char *file_name;
   char file_name_with_path[100], file_size_str[20], server_reply[10];
   char buf[1024];
@@ -82,32 +80,45 @@ void Port::start() {
     if (strcmp(local_ip, "0.0.0.0") == 0) {
       continue;
     }
+    log_trace("1111111111111111");
     // get gateway ip address
     char *gateway_ip = get_gateway_ip_from_local_ip(local_ip, sizeof(local_ip));
+    char real_gateway_ip[100];
+    sprintf(real_gateway_ip, "%s\0", gateway_ip);
+
+    log_trace("local ip: %s", local_ip);
+    log_trace("server ip: %s", real_gateway_ip);
 
     // send file to ap
     DIR *d;
     struct dirent *dir;
     d = opendir(FILE_PATH);
+    log_trace("2222222222222222");
     if (d) {
+      log_trace("3333333333333333");
       while ((dir = readdir(d)) != NULL) {
+        log_trace("444444444444444");
         file_name = dir->d_name;
         if (strncmp(file_name, "f_", 2) != 0) {
           continue;
         }
         log_trace("*** Data file: %s ***", file_name);
 
-        socket_desc = socket(AF_INET, SOCK_STREAM, 0);
+        int socket_desc = socket(AF_INET, SOCK_STREAM, 0);
         if (socket_desc == -1)
         {
           break;
         }
-        server.sin_addr.s_addr = inet_addr(gateway_ip);
+        struct sockaddr_in server;
+        log_trace("server port: %d", ap_recv_port);
+        server.sin_addr.s_addr = inet_addr(real_gateway_ip);
         server.sin_family = AF_INET;
         server.sin_port = htons(ap_recv_port);
-        if (connect(socket_desc, (struct sockaddr *)&server, sizeof(server)) < 0)
+        int i = connect(socket_desc, (struct sockaddr *)&server, sizeof(server));
+        if (i < 0)
         {
-          log_trace("connect failed");
+          log_trace("connect failed: %d", i);
+          close(socket_desc);
           break;
         }
         log_trace("connect SUCCESS");
@@ -151,6 +162,8 @@ void Port::start() {
             read_num = fread(buf, sizeof(char), sizeof(buf), fp);
           }
         }
+        close(socket_desc);
+        fclose(fp);
         if (fail) {
           break;
         } else {
@@ -158,9 +171,6 @@ void Port::start() {
           unlink(file_name_with_path);
         }
       }
-      close(socket_desc);
-      if (fp != NULL)
-        fclose(fp);
       sleep(1);
     }
     closedir(d);

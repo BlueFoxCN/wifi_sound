@@ -108,7 +108,7 @@ char* get_gateway_ip_from_local_ip(char *l, ssize_t len) {
   strncpy(local_ip, l, len);
   int seg = 0;
   char *pch;
-  char* gateway_ip = (char *)malloc(100);
+  char gateway_ip[100] = "";
   pch = strtok(local_ip, ".");
   for (int seg = 0; seg < 3; seg++) {
     strcat(gateway_ip, pch);
