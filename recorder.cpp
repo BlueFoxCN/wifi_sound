@@ -152,7 +152,7 @@ void Recorder::record() {
       rename(file_name_with_path, final_name_with_path);
       log_trace("%s", final_name_with_path);
       cur_time = get_sys_time();
-      sprintf(cur_file_name, "%d", cur_time);
+      sprintf(cur_file_name, "%lu", cur_time);
       strcpy(file_name_with_path, FILE_PATH);
       strcat(file_name_with_path, cur_file_name);
       fp = fopen(file_name_with_path, "w+");

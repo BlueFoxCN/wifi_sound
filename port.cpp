@@ -62,11 +62,12 @@ thread Port::record_time_io() {
 void Port::start() {
   // start the record time management thread
   thread io_thread(&Port::record_time_io, this);
-  int ap_recv_port = 8002;
+  int ap_recv_port = 9003;
   int socket_desc;
+  long file_size;
   struct sockaddr_in server;
   char *file_name;
-  char file_name_with_path[100];
+  char file_name_with_path[100], file_size_str[20], server_reply[10];
   char buf[1024];
   char start_with_file_name[1024];
   int read_num;
@@ -94,6 +95,7 @@ void Port::start() {
         if (strncmp(file_name, "f_", 2) != 0) {
           continue;
         }
+        log_trace("*** Data file: %s ***", file_name);
 
         socket_desc = socket(AF_INET, SOCK_STREAM, 0);
         if (socket_desc == -1)
@@ -105,41 +107,63 @@ void Port::start() {
         server.sin_port = htons(ap_recv_port);
         if (connect(socket_desc, (struct sockaddr *)&server, sizeof(server)) < 0)
         {
+          log_trace("connect failed");
           break;
         }
+        log_trace("connect SUCCESS");
 
         strcpy(file_name_with_path, FILE_PATH);
         strcat(file_name_with_path, file_name);
-        file_name_with_path[strlen(FILE_PATH)+strlen(file_name)] = "\0"
-        fp = fopen(file_name_with_path, "r");
-        read_num = fread(buf, sizeof(char), sizeof(buf), fp);
+        file_name_with_path[strlen(FILE_PATH) + strlen(file_name)] = '\0';
+        fp = fopen(file_name_with_path, "rb");
+        fseek(fp, 0L, SEEK_END);
+        file_size = ftell(fp);
+        fseek(fp, 0L, SEEK_SET);
         fail = false;
         strcpy(start_with_file_name, "start:");
         strcat(start_with_file_name, file_name);
-        start_with_file_name[strlen("start:")+strlen(file_name)] = "\0"
+        strcat(start_with_file_name, ":");
+        sprintf(file_size_str, "%lu\0", file_size);
+        strcat(start_with_file_name, file_size_str);
+        start_with_file_name[strlen("start:") + strlen(file_name) + strlen(":") + strlen(file_size_str)] = '\0';
+        log_trace("ready to send start info: %s", start_with_file_name);
         if (send(socket_desc, start_with_file_name, strlen(start_with_file_name), 0) < 0) {
           fail = true;
         }
-        while (read_num > 0) {
-          if (send(socket_desc, buf, read_num, 0) < 0) {
-            fail = true;
-            break;
+
+        if (recv(socket_desc, server_reply, 10, 0) < 0) {
+          fail = true;
+        }
+        log_trace("receive server reply: %s", server_reply);
+
+        if (strncmp(server_reply, "confirm", strlen("confirm")) != 0) {
+          fail = true;
+        }
+
+        if (!fail) {
+          read_num = fread(buf, sizeof(char), sizeof(buf), fp);
+          while (read_num > 0) {
+            log_trace("read number: %d", read_num);
+            if (send(socket_desc, buf, read_num, 0) < 0) {
+              fail = true;
+              break;
+            }
+            read_num = fread(buf, sizeof(char), sizeof(buf), fp);
           }
         }
         if (fail) {
           break;
         } else {
-          // finish transmission, remove the file
-          if (send(socket_desc, "finish", strlen("finish"), 0) < 0) {
-            break;
-          }
+          log_trace("remove file: %s", file_name_with_path);
           unlink(file_name_with_path);
         }
       }
-      closedir(d);
-      fclose(fp);
       close(socket_desc);
+      if (fp != NULL)
+        fclose(fp);
+      sleep(1);
     }
+    closedir(d);
   }
   io_thread.join();
 }
