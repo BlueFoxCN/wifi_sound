@@ -139,7 +139,7 @@ void Recorder::record() {
     nBytes = speex_bits_write(&enc_bits, buffer, size);
 
 
-    fwrite(&nBytes, sizeof(int), 1, fp);
+    // fwrite(&nBytes, sizeof(int), 1, fp);
     fwrite(buffer, sizeof(char), nBytes, fp);
     cur_file_size += nBytes;
     if (cur_file_size > FILE_SIZE) {
