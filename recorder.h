@@ -8,7 +8,7 @@ using namespace std;
 
 #define RECORD_TIME_FILE "record_time.txt"
 
-#define FILE_SIZE 10000
+#define FILE_SIZE 1000000
 #define CHECK_INTERVAL 3
 
 class Recorder {

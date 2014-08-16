@@ -38,7 +38,7 @@ void Recorder::record() {
   char *buffer, cur_file_name[100], file_name_with_path[100], final_name[100], final_name_with_path[100];
 
   /* Open PCM device for recording (capture). */
-  rc = snd_pcm_open(&handle, "hw:0,0",
+  rc = snd_pcm_open(&handle, "hw:1,0",
           SND_PCM_STREAM_CAPTURE, 0);
   if (rc < 0) {
     log_error("unable to open pcm device: %s", snd_strerror(rc));
@@ -65,16 +65,14 @@ void Recorder::record() {
   snd_pcm_hw_params_set_channels(handle, params, channel_num);
 
   /* 48000 bits/second sampling rate (CD quality) */
-  do {
-    val = 48000;
-    snd_pcm_hw_params_set_rate_near(handle, params,
-                  &val, &dir);
-  } while (val != 48000);
+  val = 48000;
+  snd_pcm_hw_params_set_rate_near(handle, params,
+                    &val, &dir);
 
-  /* Set period size to 48 frames. */
-  frames = 48;
+  /* Set period size to 160 frames. */
+  frames = 160;
   snd_pcm_hw_params_set_period_size_near(handle,
-                    params, &frames, &dir);
+                  params, &frames, &dir);
 
   /* Write the parameters to the driver */
   rc = snd_pcm_hw_params(handle, params);
@@ -99,7 +97,7 @@ void Recorder::record() {
 	void *enc_state;
 	SpeexBits enc_bits;
 	char c_out[size];
-	short out[size];
+	short out[size / 2];
 	int nBytes;
 	long cur_time;
 
@@ -132,17 +130,18 @@ void Recorder::record() {
       log_warn("short read, read %d frames", rc);
     }
 
-    for (int i = 0; i < size; i++) {
-      out[i] = c_out[i];
+    for (int i = 0; i < size / 2; i++) {
+      out[i] = ( c_out[2 * i + 1] << 8 ) | (unsigned char)c_out[2 * i];
     }
 
     speex_bits_reset(&enc_bits);
     speex_encode_int(enc_state,out,&enc_bits);
     nBytes = speex_bits_write(&enc_bits, buffer, size);
 
+
+    fwrite(&nBytes, sizeof(int), 1, fp);
     fwrite(buffer, sizeof(char), nBytes, fp);
     cur_file_size += nBytes;
-
     if (cur_file_size > FILE_SIZE) {
       fclose(fp);
       strcpy(final_name, "f_");
@@ -159,6 +158,9 @@ void Recorder::record() {
       cur_file_size = 0;
     }
   }
+
+  snd_pcm_drain(handle);
+  snd_pcm_close(handle);
 
   fclose(fp);
   strcpy(final_name, "f_");
