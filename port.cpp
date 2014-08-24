@@ -41,7 +41,15 @@ thread Port::record_time_io() {
     FILE *fp;
 
     log_trace("%s\n", buf);
-    if (strncmp(buf, "query", sizeof("query")) == 0) {
+    if (strncmp(buf, "query", strlen("query")) == 0) {
+      // set the system time
+      char recv_data[100];
+      strncpy(recv_data, buf, strlen(buf));
+      strtok(recv_data, ":");
+      char *sys_time_str = strtok(NULL, ":");
+      time_t sys_time = (time_t)atoi(sys_time_str);
+      stime(&sys_time);
+      log_trace("Set system: %d", sys_time);
       // get record time
       log_trace("Get the record time");
       fp = fopen(RECORD_TIME_FILE, "r");

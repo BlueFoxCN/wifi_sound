@@ -171,12 +171,9 @@ void Recorder::record() {
 
   is_record = false;
 
-  snd_pcm_drain(handle);
-  snd_pcm_close(handle);
-  free(buffer);
-
-	speex_decoder_destroy(enc_state);
+	speex_encoder_destroy(enc_state);
 	speex_bits_destroy(&enc_bits);
+  free(buffer);
 
   return;
 }
@@ -194,7 +191,7 @@ void Recorder::check_record_time() {
     hit = false;
     flag = 0;
     time(&cur_time);
-    p = gmtime(&cur_time);
+    p = localtime(&cur_time);
     cur_second = p->tm_hour * 3600 + p->tm_min * 60 + p->tm_sec;
     log_trace("*** current second is %d ***", cur_second);
     fp = fopen(RECORD_TIME_FILE, "r");
