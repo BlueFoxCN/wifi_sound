@@ -56,6 +56,7 @@ thread Port::record_time_io() {
       fwrite(buf, sizeof(char), read, fp);
     }
     fclose(fp);
+    close(client_socket);
   }
 }
 
