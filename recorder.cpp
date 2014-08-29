@@ -38,7 +38,7 @@ void Recorder::record() {
   char *buffer, cur_file_name[100], file_name_with_path[100], final_name[100], final_name_with_path[100];
 
   /* Open PCM device for recording (capture). */
-  rc = snd_pcm_open(&handle, "hw:1,0",
+  rc = snd_pcm_open(&handle, "hw:0,0",
           SND_PCM_STREAM_CAPTURE, 0);
   if (rc < 0) {
     log_error("unable to open pcm device: %s", snd_strerror(rc));

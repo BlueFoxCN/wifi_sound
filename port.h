@@ -15,6 +15,7 @@ class Port {
   public:
     Port();
     void start();
+    char local_ip[100];
 };
 
 #endif

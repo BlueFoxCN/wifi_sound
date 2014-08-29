@@ -3,6 +3,6 @@
 
 
 // #define FILE_PATH "/mnt/sda/"
-#define FILE_PATH "./"
+#define FILE_PATH "/mnt/tf/"
 
 #endif

@@ -1,0 +1,5 @@
+#!/bin/sh
+VAR=`pgrep wifi_sound`
+if [[ -z "$VAR" ]]; then
+  `/root/wifi_sound`
+fi
