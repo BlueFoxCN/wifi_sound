@@ -90,7 +90,6 @@ void Port::start() {
     if (strcmp(local_ip, "0.0.0.0") == 0) {
       continue;
     }
-    log_trace("1111111111111111");
     // get gateway ip address
     char *gateway_ip = get_gateway_ip_from_local_ip(local_ip, sizeof(local_ip));
     char real_gateway_ip[100];
@@ -103,11 +102,8 @@ void Port::start() {
     DIR *d;
     struct dirent *dir;
     d = opendir(FILE_PATH);
-    log_trace("2222222222222222");
     if (d) {
-      log_trace("3333333333333333");
       while ((dir = readdir(d)) != NULL) {
-        log_trace("444444444444444");
         file_name = dir->d_name;
         if (strncmp(file_name, "f_", 2) != 0) {
           continue;
@@ -120,7 +116,6 @@ void Port::start() {
           break;
         }
         struct sockaddr_in server;
-        log_trace("server port: %d", ap_recv_port);
         server.sin_addr.s_addr = inet_addr(real_gateway_ip);
         server.sin_family = AF_INET;
         server.sin_port = htons(ap_recv_port);
