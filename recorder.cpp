@@ -37,6 +37,8 @@ void Recorder::record() {
   FILE *fp;
   char *buffer, cur_file_name[100], file_name_with_path[100], final_name[100], final_name_with_path[100];
 
+  log_trace("AAAAAAAAAA");
+
   /* Open PCM device for recording (capture). */
   rc = snd_pcm_open(&handle, "hw:0,0",
           SND_PCM_STREAM_CAPTURE, 0);
@@ -48,6 +50,7 @@ void Recorder::record() {
   /* Allocate a hardware parameters object. */
   snd_pcm_hw_params_alloca(&params);
 
+  log_trace("BBBBBBBBBB");
   /* Fill it in with default values. */
   snd_pcm_hw_params_any(handle, params);
 
@@ -69,13 +72,14 @@ void Recorder::record() {
   snd_pcm_hw_params_set_rate_near(handle, params,
                     &val, &dir);
 
-  /* Set period size to 160 frames. */
-  frames = 160;
+  /* Set period size to 320 frames. */
+  frames = 320;
   snd_pcm_hw_params_set_period_size_near(handle,
                   params, &frames, &dir);
 
   /* Write the parameters to the driver */
   rc = snd_pcm_hw_params(handle, params);
+  log_trace("CCCCCCCCCC");
   if (rc < 0) {
     log_error("unable to set hw parameters: %s", snd_strerror(rc));
     exit(1);
@@ -91,23 +95,26 @@ void Recorder::record() {
                   &val, &dir);
 
 
+  log_trace("DDDDDDDDDD");
   /***** encode *****/
   int frames_size;
-	frames_size = channel_num * 16;	/* 16 bits/sample, 1 channels */
-	void *enc_state;
-	SpeexBits enc_bits;
-	char c_out[size];
-	short out[size / 2];
-	int nBytes;
-	long cur_time;
+  frames_size = channel_num * 16;	/* 16 bits/sample, 1 channels */
+  void *enc_state;
+  SpeexBits enc_bits;
+  char c_out[size];
+  short out[size / 2];
+  short t_out[size / 4];
+  int nBytes;
+  long cur_time;
 
-	enc_state = speex_encoder_init(&speex_nb_mode);
-	int q=8;
-	speex_encoder_ctl(enc_state, SPEEX_SET_QUALITY, &q);  
-	speex_encoder_ctl(enc_state, SPEEX_GET_FRAME_SIZE, &frames_size);
-	speex_bits_init(&enc_bits);  
+  enc_state = speex_encoder_init(&speex_nb_mode);
+  int q = 8;
+  speex_encoder_ctl(enc_state, SPEEX_SET_QUALITY, &q);  
+  speex_encoder_ctl(enc_state, SPEEX_GET_FRAME_SIZE, &frames_size);
+  speex_bits_init(&enc_bits);  
   /******************/
 
+  log_trace("EEEEEEEEEE");
 
   is_record = true;
   stop = false;
@@ -117,6 +124,7 @@ void Recorder::record() {
   strcat(file_name_with_path, cur_file_name);
   fp = fopen(file_name_with_path, "w+");
   cur_file_size = 0;
+  log_trace("FFFFFFFFFF");
   while (!stop) {
     
     rc = snd_pcm_readi(handle, c_out, frames);
@@ -130,18 +138,27 @@ void Recorder::record() {
       log_warn("short read, read %d frames", rc);
     }
 
+    /************* with speex *************/
     for (int i = 0; i < size / 2; i++) {
       out[i] = ( c_out[2 * i + 1] << 8 ) | (unsigned char)c_out[2 * i];
     }
-
+    for (int i = 0; i < size / 4; i++) {
+      t_out[i] = ( c_out[4 * i + 1] << 8 ) | (unsigned char)c_out[4 * i];
+    }
     speex_bits_reset(&enc_bits);
-    speex_encode_int(enc_state,out,&enc_bits);
+    speex_encode_int(enc_state, t_out, &enc_bits);
     nBytes = speex_bits_write(&enc_bits, buffer, size);
-
-
-    // fwrite(&nBytes, sizeof(int), 1, fp);
     fwrite(buffer, sizeof(char), nBytes, fp);
     cur_file_size += nBytes;
+    /**************************************/
+
+    /************* without speex *************/
+    /*
+    fwrite(c_out, sizeof(char), size, fp);
+    cur_file_size += size;
+    */
+    /*****************************************/
+
     if (cur_file_size > FILE_SIZE) {
       fclose(fp);
       strcpy(final_name, "f_");
@@ -149,7 +166,7 @@ void Recorder::record() {
       strcpy(final_name_with_path, FILE_PATH);
       strcat(final_name_with_path, final_name);
       rename(file_name_with_path, final_name_with_path);
-      log_trace("%s", final_name_with_path);
+      // log_trace("%s", final_name_with_path);
       cur_time = get_sys_time();
       sprintf(cur_file_name, "%lu", cur_time);
       strcpy(file_name_with_path, FILE_PATH);
@@ -171,8 +188,8 @@ void Recorder::record() {
 
   is_record = false;
 
-	speex_encoder_destroy(enc_state);
-	speex_bits_destroy(&enc_bits);
+  speex_encoder_destroy(enc_state);
+  speex_bits_destroy(&enc_bits);
   free(buffer);
 
   return;
@@ -193,7 +210,7 @@ void Recorder::check_record_time() {
     time(&cur_time);
     p = localtime(&cur_time);
     cur_second = p->tm_hour * 3600 + p->tm_min * 60 + p->tm_sec;
-    log_trace("*** current second is %d ***", cur_second);
+    // log_trace("*** current second is %d ***", cur_second);
     fp = fopen(RECORD_TIME_FILE, "r");
     if (fp) {
       read = fread(buf, sizeof(char), sizeof(buf), fp);

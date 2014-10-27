@@ -41,7 +41,7 @@ thread Port::record_time_io() {
     
     FILE *fp;
 
-    log_trace("%s\n", buf);
+    // log_trace("%s\n", buf);
     if (strncmp(buf, "query", strlen("query")) == 0) {
       // set the system time
       char recv_data[100];
@@ -50,17 +50,17 @@ thread Port::record_time_io() {
       char *sys_time_str = strtok(NULL, ":");
       time_t sys_time = (time_t)atoi(sys_time_str);
       stime(&sys_time);
-      log_trace("Set system: %d", sys_time);
+      // log_trace("Set system: %d", sys_time);
       // get record time
-      log_trace("Get the record time");
+      // log_trace("Get the record time");
       fp = fopen(RECORD_TIME_FILE, "r");
       read = fread(buf, sizeof(char), sizeof(buf), fp);
-      log_trace("Record time: %s", buf);
+      // log_trace("Record time: %s", buf);
       write(client_socket, buf, read);
     }
     else {
       // set record time
-      log_trace("Set the record time");
+      // log_trace("Set the record time");
       fp = fopen(RECORD_TIME_FILE, "w");
       fwrite(buf, sizeof(char), read, fp);
     }
@@ -95,8 +95,8 @@ void Port::start() {
     char real_gateway_ip[100];
     sprintf(real_gateway_ip, "%s\0", gateway_ip);
 
-    log_trace("local ip: %s", local_ip);
-    log_trace("server ip: %s", real_gateway_ip);
+    // log_trace("local ip: %s", local_ip);
+    // log_trace("server ip: %s", real_gateway_ip);
 
     // send file to ap
     DIR *d;
@@ -108,7 +108,7 @@ void Port::start() {
         if (strncmp(file_name, "f_", 2) != 0) {
           continue;
         }
-        log_trace("*** Data file: %s ***", file_name);
+        // log_trace("*** Data file: %s ***", file_name);
 
         int socket_desc = socket(AF_INET, SOCK_STREAM, 0);
         if (socket_desc == -1)
@@ -122,11 +122,11 @@ void Port::start() {
         int i = connect(socket_desc, (struct sockaddr *)&server, sizeof(server));
         if (i < 0)
         {
-          log_trace("connect failed: %d", i);
+          // log_trace("connect failed: %d", i);
           close(socket_desc);
           break;
         }
-        log_trace("connect SUCCESS");
+        // log_trace("connect SUCCESS");
 
         strcpy(file_name_with_path, FILE_PATH);
         strcat(file_name_with_path, file_name);
@@ -142,7 +142,7 @@ void Port::start() {
         sprintf(file_size_str, "%lu\0", file_size);
         strcat(start_with_file_name, file_size_str);
         start_with_file_name[strlen("start:") + strlen(file_name) + strlen(":") + strlen(file_size_str)] = '\0';
-        log_trace("ready to send start info: %s", start_with_file_name);
+        // log_trace("ready to send start info: %s", start_with_file_name);
         if (send(socket_desc, start_with_file_name, strlen(start_with_file_name), 0) < 0) {
           fail = true;
         }
@@ -150,7 +150,7 @@ void Port::start() {
         if (recv(socket_desc, server_reply, 10, 0) < 0) {
           fail = true;
         }
-        log_trace("receive server reply: %s", server_reply);
+        // log_trace("receive server reply: %s", server_reply);
 
         if (strncmp(server_reply, "confirm", strlen("confirm")) != 0) {
           fail = true;
@@ -159,7 +159,7 @@ void Port::start() {
         if (!fail) {
           read_num = fread(buf, sizeof(char), sizeof(buf), fp);
           while (read_num > 0) {
-            log_trace("read number: %d", read_num);
+            // log_trace("read number: %d", read_num);
             if (send(socket_desc, buf, read_num, 0) < 0) {
               fail = true;
               break;
@@ -172,7 +172,7 @@ void Port::start() {
         if (fail) {
           break;
         } else {
-          log_trace("remove file: %s", file_name_with_path);
+          // log_trace("remove file: %s", file_name_with_path);
           unlink(file_name_with_path);
         }
       }
